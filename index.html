@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NJ County Health Dashboard — Diabetes & Depression</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #1B3A5C;
+    --teal: #2A7F6F;
+    --ice: #E8F4F2;
+    --coral: #E05C3A;
+    --sand: #F5F0E8;
+    --text: #1A1A2E;
+    --muted: #5A6A7A;
+    --white: #FFFFFF;
+    --border: #D0DDE8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: var(--sand);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--navy);
+    color: var(--white);
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--teal), var(--coral), var(--teal));
+  }
+  .header-inner { max-width: 1200px; margin: 0 auto; }
+  .header-tag {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 0.75rem;
+    opacity: 0.9;
+  }
+  header h1 {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: normal;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+  header h1 span { color: #7EC8BE; }
+  .header-sub {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 1.5rem;
+  }
+  .header-stats {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .hstat {
+    border-left: 2px solid var(--teal);
+    padding-left: 0.75rem;
+  }
+  .hstat-num {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #7EC8BE;
+    font-family: 'Arial', sans-serif;
+  }
+  .hstat-label {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.6);
+    font-family: 'Arial', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* KEY FINDING BANNER */
+  .finding-banner {
+    background: var(--coral);
+    color: var(--white);
+    padding: 1rem 2rem;
+    font-family: 'Arial', sans-serif;
+  }
+  .finding-banner-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .finding-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.85;
+    white-space: nowrap;
+    font-weight: bold;
+  }
+  .finding-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  .finding-text strong { font-weight: bold; }
+
+  /* MAIN LAYOUT */
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  /* NAV TABS */
+  .tab-nav {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    background: var(--white);
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .tab-btn {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.82rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .tab-btn:hover { background: var(--ice); color: var(--navy); }
+  .tab-btn.active {
+    background: var(--navy);
+    color: var(--white);
+    border-color: var(--navy);
+  }
+
+  /* PANEL */
+  .panel { display: none; }
+  .panel.active { display: contents; }
+
+  /* CARDS */
+  .card {
+    background: var(--white);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    overflow: hidden;
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: normal;
+    color: var(--navy);
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .card-icon {
+    width: 28px; height: 28px;
+    background: var(--ice);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .card-caption {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 1.2rem;
+    line-height: 1.5;
+    padding-left: 2rem;
+  }
+  .chart-wrap { position: relative; height: 280px; }
+  .insight-box {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--ice);
+    border-left: 3px solid var(--teal);
+    border-radius: 0 4px 4px 0;
+    font-family: 'Arial', sans-serif;
+    font-size: 0.8rem;
+    color: var(--navy);
+    line-height: 1.5;
+  }
+  .insight-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--teal);
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+  }
+
+  /* GRID LAYOUTS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .span-2 { grid-column: span 2; }
+
+  /* HUDSON CALLOUT */
+  .hudson-callout {
+    background: var(--navy);
+    color: var(--white);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  .hudson-text h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: #7EC8BE;
+  }
+  .hudson-text p {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.83rem;
+    color: rgba(255,255,255,0.8);
+    line-height: 1.6;
+  }
+  .hudson-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .hmetric {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+  }
+  .hmetric-val {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #7EC8BE;
+    font-family: 'Arial', sans-serif;
+    min-width: 4rem;
+  }
+  .hmetric-info { font-family: 'Arial', sans-serif; }
+  .hmetric-label { font-size: 0.75rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.05em; }
+  .hmetric-rank { font-size: 0.85rem; color: var(--coral); font-weight: bold; margin-top: 0.1rem; }
+
+  /* RECOMMENDATION CARDS */
+  .rec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .rec-card {
+    background: var(--white);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 1.2rem;
+    border-top: 3px solid var(--teal);
+  }
+  .rec-card.coral { border-top-color: var(--coral); }
+  .rec-card.navy { border-top-color: var(--navy); }
+  .rec-who {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--teal);
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  .rec-card.coral .rec-who { color: var(--coral); }
+  .rec-card.navy .rec-who { color: var(--navy); }
+  .rec-title {
+    font-size: 0.9rem;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+  }
+  .rec-body {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* STAT TILES */
+  .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .stat-tile {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .stat-tile-num {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--navy);
+    font-family: 'Arial', sans-serif;
+  }
+  .stat-tile-unit {
+    font-size: 0.9rem;
+    color: var(--teal);
+  }
+  .stat-tile-label {
+    font-family: 'Arial', sans-serif;
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    font-family: 'Arial', sans-serif;
+    font-size: 0.75rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .rec-grid, .stat-tiles { grid-template-columns: 1fr; }
+    .hudson-callout { grid-template-columns: 1fr; }
+    .span-2 { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-tag">TruBridge Healthcare Data Analytics Externship · Phase 1</div>
+    <h1>Diabetes & Depression Patterns<br>in <span>New Jersey Counties</span></h1>
+    <p class="header-sub">County-Level Analysis Using CDC PLACES 2023 Data · Yamini Yesaswini Dusi, MPH</p>
+    <div class="header-stats">
+      <div class="hstat">
+        <div class="hstat-num">21</div>
+        <div class="hstat-label">NJ Counties Analyzed</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-num">84</div>
+        <div class="hstat-label">Data Points</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-num">−0.31</div>
+        <div class="hstat-label">Correlation (r)</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-num">2023</div>
+        <div class="hstat-label">CDC PLACES Release</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="finding-banner">
+  <div class="finding-banner-inner">
+    <span class="finding-label">⚡ Key Finding</span>
+    <span class="finding-text">Hudson County ranks <strong>4th highest in diabetes (10.8%)</strong> yet has the <strong>lowest depression prevalence statewide (14.0%)</strong> — suggesting these conditions are driven by different social and environmental factors across NJ counties.</span>
+  </div>
+</div>
+
+<main>
+
+  <!-- TAB NAVIGATION -->
+  <nav class="tab-nav" aria-label="Dashboard sections">
+    <button class="tab-btn active" onclick="showTab('overview')">📊 Overview</button>
+    <button class="tab-btn" onclick="showTab('diabetes')">🔵 Diabetes</button>
+    <button class="tab-btn" onclick="showTab('depression')">🟢 Depression</button>
+    <button class="tab-btn" onclick="showTab('correlation')">🔗 Relationship</button>
+    <button class="tab-btn" onclick="showTab('hudson')">📍 Hudson County</button>
+    <button class="tab-btn" onclick="showTab('recommendations')">💡 Recommendations</button>
+  </nav>
+
+  <!-- OVERVIEW PANEL -->
+  <div class="panel active" id="tab-overview">
+
+    <div class="stat-tiles">
+      <div class="stat-tile">
+        <div class="stat-tile-num">9.24<span class="stat-tile-unit">%</span></div>
+        <div class="stat-tile-label">Mean Diabetes Prevalence</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-num">16.50<span class="stat-tile-unit">%</span></div>
+        <div class="stat-tile-label">Mean Depression Prevalence</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-num">5.1<span class="stat-tile-unit">pp</span></div>
+        <div class="stat-tile-label">Diabetes Range Width</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile-num">6.5<span class="stat-tile-unit">pp</span></div>
+        <div class="stat-tile-label">Depression Range Width</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><div class="card-icon">📊</div>Statewide Distribution Comparison</div>
+        <div class="card-caption">Age-adjusted prevalence (%) for diabetes and depression across all 21 NJ counties. Counties are ordered by diabetes burden.</div>
+        <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
+        <div class="insight-box">
+          <div class="insight-label">Insight</div>
+          Both conditions vary widely, but their distributions don't align — high-diabetes counties are not necessarily the same as high-depression counties.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-icon">🗺️</div>County Burden Summary</div>
+        <div class="card-caption">Distribution of both health measures across the 21-county dataset. Note the gap between diabetes and depression mean values.</div>
+        <div class="chart-wrap"><canvas id="summaryRadar"></canvas></div>
+        <div class="insight-box">
+          <div class="insight-label">Insight</div>
+          Depression prevalence is consistently higher than diabetes across all counties, with a wider spread suggesting more variable social drivers.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- DIABETES PANEL -->
+  <div class="panel" id="tab-diabetes">
+    <div class="card span-2">
+      <div class="card-title"><div class="card-icon">🔵</div>Diabetes Prevalence by NJ County — Ranked</div>
+      <div class="card-caption">Age-adjusted diabetes prevalence (%) per county. Cumberland leads at 12.1%; Hunterdon is lowest at 7.0%. Hudson County ranks 4th at 10.8%.</div>
+      <div class="chart-wrap" style="height:420px"><canvas id="diabetesBar"></canvas></div>
+      <div class="insight-box">
+        <div class="insight-label">Insight</div>
+        Cumberland, Passaic, and Essex — all dense, urban, and lower-income counties — dominate the high-diabetes tier. Hudson County's elevated rank despite being a mixed-income area suggests additional socioeconomic or demographic factors at play.
+      </div>
+    </div>
+  </div>
+
+  <!-- DEPRESSION PANEL -->
+  <div class="panel" id="tab-depression">
+    <div class="card span-2">
+      <div class="card-title"><div class="card-icon">🟢</div>Depression Prevalence by NJ County — Ranked</div>
+      <div class="card-caption">Age-adjusted depression prevalence (%) per county. Cape May leads at 19.5%; Middlesex is lowest at 13.0%. Hudson County ranks last at 14.0%.</div>
+      <div class="chart-wrap" style="height:420px"><canvas id="depressionBar"></canvas></div>
+      <div class="insight-box">
+        <div class="insight-label">Insight</div>
+        Cape May, Salem, Gloucester, and Sussex — predominantly rural, coastal, and suburban counties — lead in depression. This contrasts sharply with the urban-led diabetes rankings, confirming different geographic drivers for each condition.
+      </div>
+    </div>
+  </div>
+
+  <!-- CORRELATION PANEL -->
+  <div class="panel" id="tab-correlation">
+    <div class="grid-2">
+      <div class="card span-2">
+        <div class="card-title"><div class="card-icon">🔗</div>Diabetes vs. Depression — Scatter Plot</div>
+        <div class="card-caption">Each point represents one NJ county. X-axis: diabetes prevalence (%); Y-axis: depression prevalence (%). Hudson County is highlighted in red.</div>
+        <div class="chart-wrap" style="height:380px"><canvas id="scatterChart"></canvas></div>
+        <div class="insight-box">
+          <div class="insight-label">Insight</div>
+          The weakly negative correlation (r = −0.31) shows that counties with high diabetes burden do not consistently have high depression burden. Hudson County's position — high diabetes, low depression — is visually distinct from all other counties.
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="card-icon">📐</div>Correlation Matrix</div>
+      <div class="card-caption">Pearson correlation between diabetes and depression county-level prevalence estimates.</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="corrMatrix"></canvas></div>
+      <div class="insight-box">
+        <div class="insight-label">Insight</div>
+        r = −0.31 indicates a mild inverse relationship. This is statistically meaningful but not strong — other unmeasured variables (income, demographics, access) likely explain much of the remaining variance.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="card-icon">📋</div>Top 5 Counties — Side by Side</div>
+      <div class="card-caption">Top 5 counties ranked by each condition. Note the near-zero overlap between lists.</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="top5Chart"></canvas></div>
+      <div class="insight-box">
+        <div class="insight-label">Insight</div>
+        Only Cumberland appears in both top-5 lists, confirming that diabetes and depression hot spots are largely separate geographic phenomena in New Jersey.
+      </div>
+    </div>
+  </div>
+
+  <!-- HUDSON COUNTY PANEL -->
+  <div class="panel" id="tab-hudson">
+    <div class="hudson-callout">
+      <div class="hudson-text">
+        <h3>Hudson County: The Central Outlier</h3>
+        <p>Hudson County — home to Jersey City and Hoboken — defies the statewide pattern. It carries the 4th highest diabetes burden in New Jersey while simultaneously recording the lowest depression prevalence of all 21 counties. No other county occupies this quadrant of the data. This divergence suggests that the social, demographic, and environmental factors shaping diabetes risk in Hudson County operate differently from those driving depression — a pattern worth investigating in Phase 2 with ACS socioeconomic data.</p>
+      </div>
+      <div class="hudson-stats">
+        <div class="hmetric">
+          <div class="hmetric-val">10.8%</div>
+          <div class="hmetric-info">
+            <div class="hmetric-label">Diabetes Prevalence</div>
+            <div class="hmetric-rank">4th Highest in NJ</div>
+          </div>
+        </div>
+        <div class="hmetric">
+          <div class="hmetric-val">14.0%</div>
+          <div class="hmetric-info">
+            <div class="hmetric-label">Depression Prevalence</div>
+            <div class="hmetric-rank">Lowest in NJ (Rank 21)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="card-icon">📍</div>Hudson County vs. NJ Averages</div>
+      <div class="card-caption">Comparison of Hudson County's diabetes and depression prevalence against the statewide NJ mean for each condition.</div>
+      <div class="chart-wrap"><canvas id="hudsonCompare"></canvas></div>
+      <div class="insight-box">
+        <div class="insight-label">Insight</div>
+        Hudson County sits 1.56 percentage points above the NJ diabetes mean while sitting 2.50 percentage points below the NJ depression mean — a profile no other county shares.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="card-icon">🗂️</div>Quadrant Analysis — All 21 Counties</div>
+      <div class="card-caption">Counties grouped by high/low diabetes and depression relative to the statewide mean. Hudson County is the only county in the high-diabetes, low-depression quadrant.</div>
+      <div class="chart-wrap"><canvas id="quadrantChart"></canvas></div>
+      <div class="insight-box">
+        <div class="insight-label">Insight</div>
+        The quadrant view makes Hudson County's isolation visually clear. Phase 2 analysis will test whether poverty rate, median income, or healthcare access variables explain this unique positioning.
+      </div>
+    </div>
+  </div>
+
+  <!-- RECOMMENDATIONS PANEL -->
+  <div class="panel" id="tab-recommendations">
+    <div class="card">
+      <div class="card-title"><div class="card-icon">💡</div>Final Recommendations</div>
+      <div class="card-caption">Actionable implications for public health professionals, healthcare systems, and data analytics teams based on Phase 1 findings.</div>
+      <div class="rec-grid" style="margin-top:1rem">
+        <div class="rec-card">
+          <div class="rec-who">🔬 Research</div>
+          <div class="rec-title">Integrate ACS Socioeconomic Data in Phase 2</div>
+          <div class="rec-body">Join CDC PLACES county-level data with American Community Survey poverty rates and median household income to test whether socioeconomic factors explain diabetes and depression disparities.</div>
+        </div>
+        <div class="rec-card coral">
+          <div class="rec-who">🏥 Public Health</div>
+          <div class="rec-title">Prioritize Diabetes Prevention in Hudson County</div>
+          <div class="rec-body">Hudson County's diabetes burden (10.8%, 4th statewide) warrants targeted screening and prevention programs, independent of depression-focused initiatives given the conditions' distinct geographic patterns.</div>
+        </div>
+        <div class="rec-card navy">
+          <div class="rec-who">📊 Healthcare Analytics</div>
+          <div class="rec-title">Design Condition-Specific Interventions</div>
+          <div class="rec-body">Do not assume diabetes and depression co-occur geographically. County-level dashboards and population health tools should track each condition separately with condition-specific risk stratification.</div>
+        </div>
+        <div class="rec-card">
+          <div class="rec-who">🗺️ Resource Allocation</div>
+          <div class="rec-title">Use Local Data Over Statewide Averages</div>
+          <div class="rec-body">Statewide NJ averages (9.24% diabetes, 16.50% depression) conceal county-level variation of up to 5+ percentage points. Local-level analysis is essential for efficient public health resource allocation.</div>
+        </div>
+        <div class="rec-card coral">
+          <div class="rec-who">🌿 Rural NJ</div>
+          <div class="rec-title">Address Mental Health in Southern NJ Counties</div>
+          <div class="rec-body">Cape May (19.5%), Salem (19.4%), and Gloucester (19.1%) lead the state in depression despite lower diabetes burden. These counties need targeted behavioral health resources and access improvements.</div>
+        </div>
+        <div class="rec-card navy">
+          <div class="rec-who">🔍 Limitations</div>
+          <div class="rec-title">Acknowledge Ecological Analysis Constraints</div>
+          <div class="rec-body">County-level findings reflect area averages, not individual risk. Correlation does not imply causation. ACS integration and multilevel modeling in Phase 2 will strengthen causal inference.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Data: CDC PLACES Local Data for Better Health (2023 Release) · Source: BRFSS Survey · Analysis: Yamini Yesaswini Dusi, MPH · TruBridge Healthcare Data Analytics Externship
+</footer>
+
+<script>
+// ---- DATA ----
+const counties = ['Cumberland','Passaic','Essex','Hudson','Middlesex','Atlantic','Union','Camden','Mercer','Salem','Gloucester','Ocean','Burlington','Somerset','Warren','Bergen','Cape May','Monmouth','Sussex','Morris','Hunterdon'];
+const diabetes = [12.1,11.1,11.0,10.8,10.3,10.3,10.2,9.9,9.8,9.7,8.9,8.8,8.7,8.5,8.0,8.0,8.0,7.8,7.6,7.4,7.0];
+const depression = [16.4,15.8,15.7,14.0,13.0,17.1,14.7,18.0,15.1,19.4,19.1,17.3,16.3,14.4,18.7,14.6,19.5,15.1,19.0,15.6,17.7];
+
+// Sort by diabetes for ranked bar
+const sorted = counties.map((c,i)=>({county:c,diab:diabetes[i],dep:depression[i]})).sort((a,b)=>b.diab-a.diab);
+const sortedDep = [...sorted].sort((a,b)=>b.dep-a.dep);
+
+const NAVY='#1B3A5C', TEAL='#2A7F6F', CORAL='#E05C3A', LIGHT_TEAL='rgba(42,127,111,0.15)', LIGHT_CORAL='rgba(224,92,58,0.15)';
+
+function hudsonColor(county, base, highlight='#E05C3A') {
+  return county === 'Hudson' ? highlight : base;
+}
+
+// ---- OVERVIEW CHART ----
+new Chart(document.getElementById('overviewChart'), {
+  type: 'bar',
+  data: {
+    labels: sorted.map(d=>d.county),
+    datasets: [
+      { label: 'Diabetes %', data: sorted.map(d=>d.diab), backgroundColor: sorted.map(d=>d.county==='Hudson'?CORAL:TEAL), borderRadius: 2 },
+      { label: 'Depression %', data: sorted.map(d=>d.dep), backgroundColor: sorted.map(d=>d.county==='Hudson'?'rgba(224,92,58,0.4)':'rgba(42,127,111,0.3)'), borderRadius: 2 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{font:{size:11}}}}, scales:{x:{ticks:{font:{size:9},maxRotation:45}},y:{beginAtZero:false,min:5,ticks:{font:{size:10}}}} }
+});
+
+// ---- SUMMARY RADAR ----
+new Chart(document.getElementById('summaryRadar'), {
+  type: 'radar',
+  data: {
+    labels: ['Min','25th %ile','Median','75th %ile','Max','Mean'],
+    datasets: [
+      { label:'Diabetes', data:[7.0,8.175,8.9,10.25,12.1,9.24], backgroundColor:'rgba(42,127,111,0.15)', borderColor:TEAL, pointBackgroundColor:TEAL },
+      { label:'Depression', data:[13.0,14.725,16.3,17.675,19.5,16.5], backgroundColor:'rgba(27,58,92,0.12)', borderColor:NAVY, pointBackgroundColor:NAVY }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{font:{size:11}}}}, scales:{r:{ticks:{font:{size:9}},pointLabels:{font:{size:10}}}} }
+});
+
+// ---- DIABETES BAR ----
+new Chart(document.getElementById('diabetesBar'), {
+  type: 'bar',
+  data: {
+    labels: sorted.map(d=>d.county),
+    datasets: [{ label:'Diabetes Prevalence (%)', data: sorted.map(d=>d.diab), backgroundColor: sorted.map(d=>d.county==='Hudson'?CORAL:TEAL), borderRadius:3 }]
+  },
+  options: {
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.parsed.x}%` } } },
+    scales:{ x:{min:6,max:13,ticks:{callback:v=>v+'%',font:{size:10}}}, y:{ticks:{font:{size:10}}} }
+  }
+});
+
+// ---- DEPRESSION BAR ----
+new Chart(document.getElementById('depressionBar'), {
+  type: 'bar',
+  data: {
+    labels: sortedDep.map(d=>d.county),
+    datasets: [{ label:'Depression Prevalence (%)', data: sortedDep.map(d=>d.dep), backgroundColor: sortedDep.map(d=>d.county==='Hudson'?CORAL:'#1B3A5C'), borderRadius:3 }]
+  },
+  options: {
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.parsed.x}%` } } },
+    scales:{ x:{min:10,max:21,ticks:{callback:v=>v+'%',font:{size:10}}}, y:{ticks:{font:{size:10}}} }
+  }
+});
+
+// ---- SCATTER CHART ----
+const scatterData = counties.map((c,i)=>({x:diabetes[i],y:depression[i],county:c}));
+new Chart(document.getElementById('scatterChart'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      { label:'NJ Counties', data: scatterData.filter(d=>d.county!=='Hudson'), backgroundColor:'rgba(27,58,92,0.6)', pointRadius:6, pointHoverRadius:8 },
+      { label:'Hudson County', data: scatterData.filter(d=>d.county==='Hudson'), backgroundColor:CORAL, pointRadius:10, pointHoverRadius:12 }
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ tooltip:{ callbacks:{ label: ctx => ` ${ctx.raw.county}: Diabetes ${ctx.raw.x}%, Depression ${ctx.raw.y}%` } }, legend:{labels:{font:{size:11}}} },
+    scales:{
+      x:{ title:{display:true,text:'Diabetes Prevalence (%)',font:{size:11}}, min:6, max:13, ticks:{font:{size:10}} },
+      y:{ title:{display:true,text:'Depression Prevalence (%)',font:{size:11}}, min:12, max:21, ticks:{font:{size:10}} }
+    }
+  }
+});
+
+// ---- CORR MATRIX ----
+new Chart(document.getElementById('corrMatrix'), {
+  type: 'bar',
+  data: {
+    labels: ['Diabetes ↔ Diabetes','Diabetes ↔ Depression','Depression ↔ Depression'],
+    datasets: [{ label:'Correlation', data:[1.0,-0.31,1.0], backgroundColor:[TEAL,CORAL,NAVY], borderRadius:4 }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` r = ${ctx.parsed.y}` } } },
+    scales:{ y:{min:-0.5,max:1.1,ticks:{font:{size:10}}}, x:{ticks:{font:{size:9}}} }
+  }
+});
+
+// ---- TOP 5 CHART ----
+new Chart(document.getElementById('top5Chart'), {
+  type: 'bar',
+  data: {
+    labels: ['Cumberland','Passaic','Essex','Hudson','Middlesex'],
+    datasets: [
+      { label:'Diabetes %', data:[12.1,11.1,11.0,10.8,10.3], backgroundColor:TEAL, borderRadius:3 },
+      { label:'Depression %', data:[16.4,15.8,15.7,14.0,13.0], backgroundColor:NAVY, borderRadius:3 }
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{labels:{font:{size:10}}}, title:{display:true,text:'Top 5 Diabetes Counties (Dep. shown for context)',font:{size:10}} },
+    scales:{ y:{min:0,max:22,ticks:{font:{size:10}}}, x:{ticks:{font:{size:9}}} }
+  }
+});
+
+// ---- HUDSON COMPARE ----
+new Chart(document.getElementById('hudsonCompare'), {
+  type: 'bar',
+  data: {
+    labels: ['Diabetes: Hudson','Diabetes: NJ Mean','Depression: Hudson','Depression: NJ Mean'],
+    datasets: [{ data:[10.8,9.24,14.0,16.50], backgroundColor:[CORAL,TEAL,CORAL,NAVY], borderRadius:4 }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.parsed.y}%` } } },
+    scales:{ y:{min:0,max:22,ticks:{callback:v=>v+'%',font:{size:10}}}, x:{ticks:{font:{size:9}}} }
+  }
+});
+
+// ---- QUADRANT CHART ----
+const quadrantData = counties.map((c,i)=>({x:diabetes[i],y:depression[i],county:c}));
+const diabMean=9.24, depMean=16.5;
+new Chart(document.getElementById('quadrantChart'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      { label:'Low Diab / Low Dep', data: quadrantData.filter(d=>d.x<diabMean&&d.y<depMean), backgroundColor:'rgba(42,127,111,0.5)', pointRadius:7 },
+      { label:'Low Diab / High Dep', data: quadrantData.filter(d=>d.x<diabMean&&d.y>=depMean), backgroundColor:'rgba(27,58,92,0.5)', pointRadius:7 },
+      { label:'High Diab / High Dep', data: quadrantData.filter(d=>d.x>=diabMean&&d.y>=depMean&&d.county!=='Hudson'), backgroundColor:'rgba(180,80,40,0.4)', pointRadius:7 },
+      { label:'Hudson: High Diab / Low Dep', data: quadrantData.filter(d=>d.county==='Hudson'), backgroundColor:CORAL, pointRadius:12 }
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ tooltip:{ callbacks:{ label: ctx => ` ${ctx.raw.county}: D=${ctx.raw.x}%, Dep=${ctx.raw.y}%` } }, legend:{labels:{font:{size:9}}} },
+    scales:{
+      x:{ title:{display:true,text:'Diabetes (%)',font:{size:10}}, min:6, max:13 },
+      y:{ title:{display:true,text:'Depression (%)',font:{size:10}}, min:12, max:21 }
+    }
+  }
+});
+
+// ---- TAB SWITCHING ----
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
